@@ -30,29 +30,31 @@ jobs:
         git submodule sync --recursive
         git submodule update --init --recursive
 
-    # ГЕНЕРАЦИЯ КЛЮЧА ПОДПИСИ
+    # ГЕНЕРАЦИЯ КЛЮЧА ДЛЯ ПОДПИСИ (В ПАПКУ CONFIG)
     - name: Generate Keystore
       run: |
         keytool -genkey -v -keystore release.keystore -alias prixoygram -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=PrixoyGram, OU=Dev, O=Prixoy, L=Kiev, S=Kiev, C=UA"
+        mkdir -p TMessagesProj/config
         cp release.keystore TMessagesProj/config/
         
-    # ДОБАВЛЯЕМ ПАРОЛИ В GRADLE.PROPERTIES
+    # ПРОПИСЫВАЕМ ПАРОЛИ В КОРНЕВОЙ GRADLE.PROPERTIES
     - name: Configure Gradle Properties
       run: |
         echo "RELEASE_STORE_FILE=config/release.keystore" >> gradle.properties
         echo "RELEASE_STORE_PASSWORD=123456" >> gradle.properties
         echo "RELEASE_KEY_ALIAS=prixoygram" >> gradle.properties
         echo "RELEASE_KEY_PASSWORD=123456" >> gradle.properties
-        echo "org.gradle.jvmargs=-Xmx4g" >> gradle.properties
+        echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
         
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    - name: Build APK
-      run: ./gradlew assembleAfatRelease
+    # СБОРКА ТОЛЬКО ПОД ARM64 (ЭКОНОМИТ ПАМЯТЬ)
+    - name: Build APK (Only ARM64)
+      run: ./gradlew assembleArm64Release --no-daemon
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: PrixoyGram-APK
-        path: TMessagesProj/build/outputs/apk/afat/release/*.apk
+        path: TMessagesProj/build/outputs/apk/arm64/release/*.apk
