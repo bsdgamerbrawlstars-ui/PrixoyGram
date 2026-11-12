@@ -16,7 +16,6 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    # ЭТОТ БЛОК СОХРАНЯЕТ СКАЧАННЫЕ БИБЛИОТЕКИ (УСКОРЯЕТ СБОРКУ)
     - name: Cache Gradle
       uses: actions/cache@v4
       with:
@@ -30,16 +29,30 @@ jobs:
       run: |
         git submodule sync --recursive
         git submodule update --init --recursive
+
+    # ГЕНЕРАЦИЯ КЛЮЧА ПОДПИСИ
+    - name: Generate Keystore
+      run: |
+        keytool -genkey -v -keystore release.keystore -alias prixoygram -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=PrixoyGram, OU=Dev, O=Prixoy, L=Kiev, S=Kiev, C=UA"
+        cp release.keystore TMessagesProj/config/
+        
+    # ДОБАВЛЯЕМ ПАРОЛИ В GRADLE.PROPERTIES
+    - name: Configure Gradle Properties
+      run: |
+        echo "RELEASE_STORE_FILE=config/release.keystore" >> gradle.properties
+        echo "RELEASE_STORE_PASSWORD=123456" >> gradle.properties
+        echo "RELEASE_KEY_ALIAS=prixoygram" >> gradle.properties
+        echo "RELEASE_KEY_PASSWORD=123456" >> gradle.properties
+        echo "org.gradle.jvmargs=-Xmx4g" >> gradle.properties
         
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    # СБОРКА ТОЛЬКО ДЛЯ ARM64 И ОГРАНИЧЕНИЕ ПАМЯТИ (ЧТОБЫ НЕ ВЫЛЕТАЛО)
-    - name: Build APK (ARM64)
-      run: ./gradlew assembleArm64Release --no-daemon -Dorg.gradle.jvmargs="-Xmx4g"
+    - name: Build APK
+      run: ./gradlew assembleAfatRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: PrixoyGram-APK
-        path: TMessagesProj/build/outputs/apk/arm64/release/*.apk
+        path: TMessagesProj/build/outputs/apk/afat/release/*.apk
